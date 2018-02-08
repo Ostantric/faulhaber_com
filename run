@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+source_dir="$(dirname "$0")"
+readonly source_dir="$(cd "$source_dir" && pwd)"
+readonly script_basename="$(basename "$0")"
+
+readonly build_dir="$source_dir/.build"
+readonly entry_points="faulhaber"
+
+function print_help() {
+    echo "USAGE:"
+    echo "  $ ./$script_basename <entry_point> [arg1 ... argn]"
+    echo "DESCRIPTION:"
+    echo "  Helper script for running the sew entry points after a successful cmake build (in .build)"
+    echo "  All args after the entry point are passed on to the entry point's binary as is."
+    echo ""
+    echo "  Valid <entry_point> are: $entry_points"
+}
+
+if [[ ! -d "$build_dir" ]]; then
+    print_help
+    echo ""
+    echo "ERROR: No build detected, please first run a build in '$build_dir'"
+    exit 1
+fi
+
+readonly entry_point="$1"
+
+if [[ -z "$entry_point" ]]; then
+    print_help
+    echo ""
+    echo "ERROR: No entry point specified, please specify one of: $entry_points"
+    exit 1
+fi
+
+if [[ ! "$entry_points" == *"$entry_point"* ]]; then
+    print_help
+    echo ""
+    echo "ERROR: '$entry_point' is not one of the valid entry points ($entry_points)"
+    exit 1
+fi
+
+entry_point_dir="$source_dir/.build/$entry_point"
+entry_point_binary="$entry_point_dir/$entry_point"
+
+cd "$entry_point_dir" && $entry_point_binary "${@:2}"

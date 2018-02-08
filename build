@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+source_dir="$(dirname "$0")"
+source_dir="$(cd "$source_dir" && pwd)"
+script_basename="$(basename "$0")"
+
+# Option variables.  These might be changed by the option parsing below.
+clean_build=false
+build_dir="$source_dir/.build"
+verbose_mode=false
+
+function verbose() {
+    local msg="$1"
+    if [[ "$verbose_mode" = true ]]; then
+        echo "$msg"
+    fi
+}
+
+function print_help() {
+    echo "USAGE:"
+    echo "  $ ./$script_basename [OPTIONS]"
+    echo "OPTIONS:"
+    echo "  -h/--help - Print this help message"
+    echo "  -c/--clean - Do a clean build from scratch, including a blank slate for cmake"
+    echo "  -d=/--dir=<directory> - The directory to perform the out of source cmake build in."
+    echo "    (default: '$source_dir/.build')"
+    echo "  -v/--verbose - Turn on verbose output while running the script"
+}
+
+# Make sure opam environment variables are available
+if [[ -z "$OCAML_TOPLEVEL_PATH" ]]; then
+    verbose "OCAML env not setup, setting it up by evaling 'opam config env'"
+    eval "$(opam config env)"
+fi
+
+for i in "$@"
+do
+case $i in
+    -c|--clean)
+        clean_build=true
+        shift
+    ;;
+    -d=*|--dir=*)
+        build_dir="${i#*=}"
+        build_dir="$(cd \"$build_dir\" && pwd)"
+        shift
+    ;;
+    -v|--verbose)
+        verbose_mode=true
+        shift
+    ;;
+    -h|--help)
+        print_help
+        exit 0
+    ;;
+    *)
+        echo "Unknown option: $i"
+    ;;
+esac
+done
+
+if [[ "$clean_build" = true && -d "$build_dir" ]]; then
+    verbose "-c/--clean specified, deleting existing build dir '$build_dir'"
+    rm -rf "$build_dir"
+fi
+
+mkdir -p "$build_dir"
+
+cd "$build_dir"
+
+cmake "$source_dir"
+
+make -j "$(nproc)"
